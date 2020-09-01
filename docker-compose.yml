@@ -1,6 +1,15 @@
 version: '3.2'
 
 services:
+  cerebro:
+    image: lmenezes/cerebro:0.8.3
+    container_name: cerebro
+    ports:
+      - "9100:9000"
+    command:
+      - -Dhosts.0.host=http://elasticsearch:9200
+    networks:
+      - elk
   elasticsearch:
     build:
       context: elasticsearch/
@@ -25,7 +34,28 @@ services:
       discovery.type: single-node
     networks:
       - elk
-
+  elasticsearch02:
+    container_name: es72_02
+    build:
+      context: elasticsearch/
+      args:
+        ELK_VERSION: $ELK_VERSION
+    volumes:
+      - type: bind
+        source: ./elasticsearch/config/elasticsearch.yml
+        target: /usr/share/elasticsearch/config/elasticsearch.yml
+        read_only: true
+      - type: volume
+        source: elasticsearch02
+        target: /usr/share/elasticsearch/data
+    environment:
+      - cluster.name=kbb-es-cluster
+      - node.name=es72_02
+      - "ES_JAVA_OPTS=-Xmx256m -Xms256m"
+      - discovery.seed_hosts=es72_01,es72_02
+      - cluster.initial_master_nodes=es72_01,es72_02
+    networks:
+      - elk
   logstash:
     build:
       context: logstash/
@@ -40,6 +70,9 @@ services:
         source: ./logstash/pipeline
         target: /usr/share/logstash/pipeline
         read_only: true
+      - type: bind
+        source: ./logstash/data
+        target: /usr/share/logstash/data
     ports:
       - "5000:5000/tcp"
       - "5000:5000/udp"
@@ -74,3 +107,4 @@ networks:
 
 volumes:
   elasticsearch:
+  elasticsearch02:
